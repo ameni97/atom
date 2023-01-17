@@ -11,11 +11,11 @@ from contextlib import contextmanager
 from types import FunctionType
 from typing import (
     Any,
-    Generic,
     Callable,
     ClassVar,
     Dict,
     FrozenSet,
+    Generic,
     Iterator,
     List,
     Mapping,
@@ -28,8 +28,12 @@ from typing import (
     Union,
 )
 
-from atom.annotation_utils import generate_member_from_type_or_generic, generate_members_from_cls_namespace
-from atom.catom import (
+from .annotation_utils import (
+    _NO_DEFAULT,
+    generate_member_from_type_or_generic,
+    generate_members_from_cls_namespace,
+)
+from .catom import (
     CAtom,
     ChangeType,
     DefaultValue,
@@ -37,10 +41,9 @@ from atom.catom import (
     PostGetAttr,
     PostSetAttr,
     PostValidate,
-    Validate
+    Validate,
 )
-from atom.typing_utils import ChangeDict
-from symbol import atom
+from .typing_utils import ChangeDict
 
 OBSERVE_PREFIX = "_observe_"
 DEFAULT_PREFIX = "_default_"
@@ -261,15 +264,13 @@ class AtomMeta(type):
     required, then a subclasss should declare the appropriate slots.
 
     """
-  
-   
 
-__atom_members__: Mapping[str, Member]
-__atom_specific_members__: FrozenSet[str]
+    __atom_members__: Mapping[str, Member]
+    __atom_specific_members__: FrozenSet[str]
+    __atom_typevars__: Mapping[str, TypeVar]
+    __atom_specialization__: dict[type, type]
 
-
-
-def __new__(  # noqa: C901
+    def __new__(  # noqa: C901
         meta,
         name: str,
         bases: Tuple[type, ...],
@@ -277,9 +278,6 @@ def __new__(  # noqa: C901
         enable_weakrefs: bool = False,
         use_annotations: bool = True,
         type_containers: int = 1,
-
-
-        
     ):
         # Unless the developer requests slots, they are automatically
         # turned off. This prevents the creation of instance dicts and
@@ -291,7 +289,7 @@ def __new__(  # noqa: C901
 
         typevars = {}
         if use_annotations and "__annotations__" in dct:
-           typevars = generate_members_from_cls_namespace(name, dct, type_containers)
+            typevars = generate_members_from_cls_namespace(name, dct, type_containers)
 
         # Pass over the class dict once and collect the information
         # necessary to implement the various behaviors. Some objects
@@ -542,10 +540,22 @@ def __new__(  # noqa: C901
 
         cls.__atom_typevars__ = typevars
 
+        cls.__atom_specialization__ = {}
+
         return cls
 
+    def __getitem__(cls, key):
+        return type(
+            f"{cls.__name__}[{key.__name__}]",
+            (cls,),
+            {
+                k: generate_member_from_type_or_generic(key, _NO_DEFAULT, 0)
+                for k, v in cls.__atom_typevars__.items()
+            },
+        )
 
-def add_member(cls: AtomMeta, name: str, member: Member) -> None:
+
+def add_member(cls: "AtomMeta", name: str, member: Member) -> None:
     """Add or override a member after the class creation."""
     existing = cls.__atom_members__.get(name)
     if existing is not None:
@@ -563,8 +573,6 @@ def add_member(cls: AtomMeta, name: str, member: Member) -> None:
     setattr(cls, name, member)
 
 
-
-
 def __newobj__(cls, *args):
     """A compatibility pickler function.
 
@@ -573,15 +581,6 @@ def __newobj__(cls, *args):
     """
     return cls.__new__(cls, *args)
 
-
-def __getitem__(cls, key):
-    #items =dict [cls.__name__, type]
-    return type(f"{cls.__name__}[{key.__name__}]", (cls,), {k: generate_member_from_type_or_generic(key) for k, v in cls.__atom_typevars__.items()})
-
-    
-#type(name, bases, dict) -> a new type
-
-      #type(f"{cls.__name__}[{key.__name__}]", (cls,), {k: generate_member_from_type_or_generic(key) for k, key in cls.__atom_typevars__.items()})
 
 class Atom(CAtom, metaclass=AtomMeta):
     """The base class for defining atom objects.
