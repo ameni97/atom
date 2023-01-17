@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from types import FunctionType
 from typing import (
     Any,
+    Generic,
     Callable,
     ClassVar,
     Dict,
@@ -22,12 +23,13 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Type,
     TypeVar,
     Union,
 )
 
-from .annotation_utils import generate_members_from_cls_namespace
-from .catom import (
+from atom.annotation_utils import generate_member_from_type_or_generic, generate_members_from_cls_namespace
+from atom.catom import (
     CAtom,
     ChangeType,
     DefaultValue,
@@ -35,9 +37,10 @@ from .catom import (
     PostGetAttr,
     PostSetAttr,
     PostValidate,
-    Validate,
+    Validate
 )
-from .typing_utils import ChangeDict
+from atom.typing_utils import ChangeDict
+from symbol import atom
 
 OBSERVE_PREFIX = "_observe_"
 DEFAULT_PREFIX = "_default_"
@@ -258,11 +261,15 @@ class AtomMeta(type):
     required, then a subclasss should declare the appropriate slots.
 
     """
+  
+   
 
-    __atom_members__: Mapping[str, Member]
-    __atom_specific_members__: FrozenSet[str]
+__atom_members__: Mapping[str, Member]
+__atom_specific_members__: FrozenSet[str]
 
-    def __new__(  # noqa: C901
+
+
+def __new__(  # noqa: C901
         meta,
         name: str,
         bases: Tuple[type, ...],
@@ -270,6 +277,9 @@ class AtomMeta(type):
         enable_weakrefs: bool = False,
         use_annotations: bool = True,
         type_containers: int = 1,
+
+
+        
     ):
         # Unless the developer requests slots, they are automatically
         # turned off. This prevents the creation of instance dicts and
@@ -279,8 +289,9 @@ class AtomMeta(type):
         if enable_weakrefs:
             dct["__slots__"] += ("__weakref__",)
 
+        typevars = {}
         if use_annotations and "__annotations__" in dct:
-            generate_members_from_cls_namespace(name, dct, type_containers)
+           typevars = generate_members_from_cls_namespace(name, dct, type_containers)
 
         # Pass over the class dict once and collect the information
         # necessary to implement the various behaviors. Some objects
@@ -529,6 +540,8 @@ class AtomMeta(type):
         # is used to ensure proper MRO resolution for members.
         cls.__atom_specific_members__ = frozenset(m.name for m in specific_members)
 
+        cls.__atom_typevars__ = typevars
+
         return cls
 
 
@@ -550,6 +563,8 @@ def add_member(cls: AtomMeta, name: str, member: Member) -> None:
     setattr(cls, name, member)
 
 
+
+
 def __newobj__(cls, *args):
     """A compatibility pickler function.
 
@@ -558,6 +573,15 @@ def __newobj__(cls, *args):
     """
     return cls.__new__(cls, *args)
 
+
+def __getitem__(cls, key):
+    #items =dict [cls.__name__, type]
+    return type(f"{cls.__name__}[{key.__name__}]", (cls,), {k: generate_member_from_type_or_generic(key) for k, v in cls.__atom_typevars__.items()})
+
+    
+#type(name, bases, dict) -> a new type
+
+      #type(f"{cls.__name__}[{key.__name__}]", (cls,), {k: generate_member_from_type_or_generic(key) for k, key in cls.__atom_typevars__.items()})
 
 class Atom(CAtom, metaclass=AtomMeta):
     """The base class for defining atom objects.
