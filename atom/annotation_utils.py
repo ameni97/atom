@@ -6,7 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # --------------------------------------------------------------------------------------
 import collections.abc
-from typing import Any, ClassVar, MutableMapping, Type
+from typing import Any, ClassVar, MutableMapping, Type, TypeVar
+
 
 from .catom import Member
 from .dict import Dict as ADict
@@ -105,10 +106,12 @@ def generate_member_from_type_or_generic(
 
 def generate_members_from_cls_namespace(
     cls_name: str, namespace: MutableMapping[str, Any], annotate_type_containers: int
-) -> None:
+) -> dict[str, TypeVar] :
     """Generate the member corresponding to a type annotation."""
     annotations = namespace["__annotations__"]
     from .atom import set_default
+
+    generics: dict[str, TypeVar] = {}
 
     for name, ann in annotations.items():
         default = namespace.get(name, _NO_DEFAULT)
@@ -133,6 +136,9 @@ def generate_members_from_cls_namespace(
         elif getattr(ann, "__origin__", None) is ClassVar:
             continue
 
+        if isinstance(ann, TypeVar):
+            generics[name] = ann
+
         try:
             namespace[name] = generate_member_from_type_or_generic(
                 ann, default, annotate_type_containers
@@ -142,3 +148,4 @@ def generate_members_from_cls_namespace(
                 "Encountered an issue when generating a member for field "
                 f"'{name}' of '{cls_name}'."
             ) from e
+        return generics
