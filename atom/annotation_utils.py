@@ -147,4 +147,5 @@ def generate_members_from_cls_namespace(
                 "Encountered an issue when generating a member for field "
                 f"'{name}' of '{cls_name}'."
             ) from e
-        return generics
+            
+    return generics
