@@ -15,7 +15,6 @@ from typing import (
     ClassVar,
     Dict,
     FrozenSet,
-    Generic,
     Iterator,
     List,
     Mapping,
@@ -23,7 +22,6 @@ from typing import (
     Optional,
     Set,
     Tuple,
-    Type,
     TypeVar,
     Union,
 )
@@ -544,15 +542,38 @@ class AtomMeta(type):
 
         return cls
 
+    # def Memory(__getitem__):
+
+    #   c__atom_specialization__ = {}
+
+    #  def memoire(key):
+
+    #       if key not in cache:
+    #          cache[key]
+    #     return cache[key]
+    # return memoire
+
     def __getitem__(cls, key):
-        return type(
-            f"{cls.__name__}[{key.__name__}]",
-            (cls,),
-            {
-                k: generate_member_from_type_or_generic(key, _NO_DEFAULT, 0)
-                for k, v in cls.__atom_typevars__.items()
-            },
-        )
+        if key not in cls.__atom_specialization__:
+            cls.__atom_specialization__[key] = type(
+                f"{cls.__name__}[{key.__name__}]",
+                (cls,),
+                {
+                    k: generate_member_from_type_or_generic(key, _NO_DEFAULT, 0)
+                    for k, v in cls.__atom_typevars__.items()
+                },
+            )
+
+        return cls.__atom_specialization__[key]
+
+    # return type(
+    # f"{cls.__name__}[{key.__name__}]",
+    # (cls,),
+    # {
+    # k: generate_member_from_type_or_generic(key, _NO_DEFAULT, 0)
+    # for k, v in cls.__atom_typevars__.items()
+    # },
+    # )
 
 
 def add_member(cls: "AtomMeta", name: str, member: Member) -> None:

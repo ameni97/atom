@@ -8,7 +8,6 @@
 import collections.abc
 from typing import Any, ClassVar, MutableMapping, Type, TypeVar
 
-
 from .catom import Member
 from .dict import Dict as ADict
 from .instance import Instance
@@ -106,7 +105,7 @@ def generate_member_from_type_or_generic(
 
 def generate_members_from_cls_namespace(
     cls_name: str, namespace: MutableMapping[str, Any], annotate_type_containers: int
-) -> dict[str, TypeVar] :
+) -> dict[str, TypeVar]:
     """Generate the member corresponding to a type annotation."""
     annotations = namespace["__annotations__"]
     from .atom import set_default
