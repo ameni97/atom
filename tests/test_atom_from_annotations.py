@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# Copyright (c) 2021-2022, Nucleic Development Team.
+# Copyright (c) 2021-2023, Nucleic Development Team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -8,6 +8,7 @@
 """Test defining an atom class using typing annotations.
 
 """
+import logging
 import sys
 from typing import (
     Any,
@@ -18,6 +19,7 @@ from typing import (
     List as TList,
     Optional,
     Set as TSet,
+    Tuple as TTuple,
     Union,
 )
 
@@ -36,6 +38,8 @@ from atom.api import (
     Member,
     Set,
     Str,
+    Tuple,
+    Typed,
     Value,
 )
 from atom.atom import set_default
@@ -141,6 +145,7 @@ def test_reject_non_member_annotated_set_default():
         (object, Value),
         (TCallable, Callable),
         (TCallable[[int], int], Callable),
+        (logging.Logger, Typed),
         (Iterable, Instance),
     ],
 )
@@ -149,24 +154,26 @@ def test_annotation_use(annotation, member):
         a: annotation
 
     assert isinstance(A.a, member)
-    if member is Instance:
+    if member is Typed:
+        assert A.a.validate_mode[1] == annotation
+    elif member is Instance:
         assert A.a.validate_mode[1] == (annotation.__origin__,)
     else:
         assert A.a.default_value_mode == member().default_value_mode
 
 
 @pytest.mark.parametrize(
-    "annotation, validate_mode",
+    "annotation, member, validate_mode",
     [
-        (Atom, (Atom,)),
-        (Union[int, str], (int, str)),
+        (Atom, Typed, Atom),
+        (Union[int, str], Instance, (int, str)),
     ],
 )
-def test_union_in_annotation(annotation, validate_mode):
+def test_union_in_annotation(annotation, member, validate_mode):
     class A(Atom, use_annotations=True):
         a: annotation
 
-    assert isinstance(A.a, Instance)
+    assert isinstance(A.a, member)
     assert A.a.validate_mode[1] == validate_mode
 
 
@@ -181,6 +188,11 @@ def test_union_in_annotation(annotation, validate_mode):
         (TSet[int], Set(Int()), 1),
         (TDict[int, int], Dict(), 0),
         (TDict[int, int], Dict(Int(), Int()), 1),
+        (TTuple[int], Tuple(), 0),
+        (TTuple[int], Tuple(Int()), 1),
+        (TTuple[int, ...], Tuple(Int()), 1),
+        (TTuple[int, float], Tuple(), 1),
+        (TTuple[tuple, int], Tuple(), 1),
     ],
 )
 def test_annotated_containers_no_default(annotation, member, depth):
