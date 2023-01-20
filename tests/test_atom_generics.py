@@ -15,3 +15,15 @@ def test_generics():
     assert isinstance(A[int].t, Int)
 
     assert A[int] is A[int]
+
+
+def test_double_generics():
+    T = TypeVar("T", bound=object)
+    U = TypeVar("U", bound=object)
+
+    class A(Atom, Generic[T, U]):
+
+        t: T
+        u: U
+
+    assert A.t is not A.u
