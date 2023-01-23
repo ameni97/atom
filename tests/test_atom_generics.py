@@ -2,12 +2,12 @@
 
 from typing import Generic, TypeVar
 
-from atom.api import Atom, Int, Value
+from atom.api import Atom, Int, Value, Str, List
+
+T = TypeVar("T", bound=object)
 
 
 def test_generics():
-    T = TypeVar("T", bound=object)
-
     class A(Atom, Generic[T]):
         t: T
 
@@ -18,7 +18,6 @@ def test_generics():
 
 
 def test_double_generics():
-    T = TypeVar("T", bound=object)
     U = TypeVar("U", bound=object)
 
     class A(Atom, Generic[T, U]):
@@ -26,4 +25,16 @@ def test_double_generics():
         t: T
         u: U
 
-    assert A.t is not A.u
+    assert isinstance(A[int, str].t, Int)
+    assert isinstance(A[int, str].u, Str)
+
+
+def test_list():
+    class A(Atom, Generic[T]):
+
+        l: list[T]
+
+    assert isinstance(A.l, List)
+    assert isinstance(A[int].l.validate_mode[1], Value)
+    assert isinstance(A[int].l, List)
+    assert isinstance(A[int].l.validate_mode[1], Int)

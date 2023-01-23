@@ -265,7 +265,7 @@ class AtomMeta(type):
 
     __atom_members__: Mapping[str, Member]
     __atom_specific_members__: FrozenSet[str]
-    __atom_typevars__: Mapping[str, TypeVar]
+    __atom_typevars__: Mapping[TypeVar, TypeVar]
     __atom_specialization__: dict[type, type]
 
     def __new__(  # noqa: C901
@@ -542,38 +542,29 @@ class AtomMeta(type):
 
         return cls
 
-    # def Memory(__getitem__):
-
-    #   c__atom_specialization__ = {}
-
-    #  def memoire(key):
-
-    #       if key not in cache:
-    #          cache[key]
-    #     return cache[key]
-    # return memoire
-
-    def __getitem__(cls, key):
+    def __getitem__(cls, key: type | tuple[type, ...]):
+        params = list(cls.__parameters__)
         if key not in cls.__atom_specialization__:
-            cls.__atom_specialization__[key] = type(
-                f"{cls.__name__}[{key.__name__}]",
-                (cls,),
-                {
-                    k: generate_member_from_type_or_generic(key, _NO_DEFAULT, 0)
-                    for k, v in cls.__atom_typevars__.items()
-                },
-            )
-
+            if isinstance(key, type):
+                cls.__atom_specialization__[key] = type(
+                    f"{cls.__name__}[{key.__name__}]",
+                    (cls,),
+                    {
+                        k: generate_member_from_type_or_generic(key, _NO_DEFAULT, 0)
+                        for k, v in cls.__atom_typevars__.items()
+                    },
+                )
+            else:
+                cls.__atom_specialization__[key] = type(
+                    f"{cls.__name__}[{key}]",
+                    (cls,),
+                    {
+                        k: generate_member_from_type_or_generic(key[params.index(v)], _NO_DEFAULT, 0)
+                        for k, v in cls.__atom_typevars__.items()
+                            
+                    },
+                )
         return cls.__atom_specialization__[key]
-
-    # return type(
-    # f"{cls.__name__}[{key.__name__}]",
-    # (cls,),
-    # {
-    # k: generate_member_from_type_or_generic(key, _NO_DEFAULT, 0)
-    # for k, v in cls.__atom_typevars__.items()
-    # },
-    # )
 
 
 def add_member(cls: "AtomMeta", name: str, member: Member) -> None:
