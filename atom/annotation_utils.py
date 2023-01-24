@@ -119,7 +119,7 @@ def generate_members_from_cls_namespace(
     annotations = namespace["__annotations__"]
     from .atom import set_default
 
-    generics: dict[str, TypeVar] = {}
+    generics: dict[str, list[TypeVar]] = {}
 
     for name, ann in annotations.items():
         default = namespace.get(name, _NO_DEFAULT)
@@ -146,6 +146,8 @@ def generate_members_from_cls_namespace(
 
         if isinstance(ann, TypeVar):
             generics[name] = ann
+        elif isinstance(list[ann].__args__, tuple):
+            generics[name] = list[ann].__args__
 
         try:
             namespace[name] = generate_member_from_type_or_generic(
